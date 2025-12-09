@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - K8S Resource Analysis{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 20px;">Welcome to Kubernetes Resource Analysis</h2>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Configurations</div>
+        <div class="stat-value" id="total-configs">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Analyses Run</div>
+        <div class="stat-value">-</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Active Applications</div>
+        <div class="stat-value" id="active-apps">-</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Quick Start</div>
+    <p>Get started with Kubernetes resource optimization in three easy steps:</p>
+    <ol style="margin-left: 20px; line-height: 2;">
+        <li><strong>Create a Configuration:</strong> Add your application details, Elasticsearch connection, and Grafana settings</li>
+        <li><strong>Run Analysis:</strong> Let our AI analyze your resource usage patterns</li>
+        <li><strong>Optimize:</strong> Apply the recommended resource configurations to your Kubernetes pods</li>
+    </ol>
+    <div style="margin-top: 20px;">
+        <a href="/configurations/new" class="btn btn-primary">Create Your First Configuration</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Recent Configurations</div>
+    <div id="configs-list">
+        <div class="loading">
+            <div class="spinner"></div>
+            Loading configurations...
+        </div>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('access_token');
+
+async function loadConfigurations() {
+    try {
+        const response = await fetch('/configurations/', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            throw new Error('Failed to load configurations');
+        }
+        
+        const configs = await response.json();
+        
+        document.getElementById('total-configs').textContent = configs.length;
+        document.getElementById('active-apps').textContent = new Set(configs.map(c => c.app_name)).size;
+        
+        const configsList = document.getElementById('configs-list');
+        
+        if (configs.length === 0) {
+            configsList.innerHTML = '<p>No configurations yet. Create your first one to get started!</p>';
+            return;
+        }
+        
+        let html = '<table><thead><tr><th>App Name</th><th>Namespace</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+        
+        configs.slice(0, 5).forEach(config => {
+            const date = new Date(config.created_at).toLocaleDateString();
+            html += `
+                <tr>
+                    <td>${config.app_name}</td>
+                    <td>${config.namespace}</td>
+                    <td>${date}</td>
+                    <td>
+                        <a href="/analysis?config_id=${config.id}" class="btn btn-primary" style="padding: 5px 15px;">Run Analysis</a>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+        configsList.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('configs-list').innerHTML = '<p class="alert alert-error">Failed to load configurations</p>';
+    }
+}
+
+loadConfigurations();
+</script>
+{% endblock %}
