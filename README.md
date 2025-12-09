@@ -58,11 +58,18 @@ ResourcesK8SAnalysis/
    pip install -r requirements.txt
    ```
 
-4. **Configure environment variables**
+4. **Configure environment variables (REQUIRED)**
    ```bash
    cp .env.example .env
-   # Edit .env and add your OpenAI API key (optional)
+   
+   # Generate a secure SECRET_KEY
+   openssl rand -hex 32
+   
+   # Edit .env and set your SECRET_KEY (REQUIRED)
+   # Optionally add your OPENAI_API_KEY for AI features
    ```
+
+   **Important:** The `SECRET_KEY` environment variable is **required** for security. The application will not start without it.
 
 ## Running the Application
 
