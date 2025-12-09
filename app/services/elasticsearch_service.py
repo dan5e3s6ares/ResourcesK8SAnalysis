@@ -2,6 +2,9 @@ from elasticsearch import Elasticsearch
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ElasticsearchService:
@@ -65,7 +68,7 @@ class ElasticsearchService:
             
             return metrics
         except Exception as e:
-            print(f"Error querying Elasticsearch: {e}")
+            logger.error(f"Error querying Elasticsearch: {e}")
             return []
 
     def get_aggregated_stats(
@@ -120,5 +123,5 @@ class ElasticsearchService:
                 "disk": aggs.get("disk_stats", {})
             }
         except Exception as e:
-            print(f"Error getting aggregated stats: {e}")
+            logger.error(f"Error getting aggregated stats: {e}")
             return {}

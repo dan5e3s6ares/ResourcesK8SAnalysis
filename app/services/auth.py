@@ -3,10 +3,11 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+import os
 from app.models import models
 from app.models import schemas
 
-SECRET_KEY = "your-secret-key-change-in-production"  # Change this in production
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

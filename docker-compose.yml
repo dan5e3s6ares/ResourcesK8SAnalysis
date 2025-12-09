@@ -10,7 +10,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - DATABASE_URL=sqlite:///./data/k8s_analysis.db
     volumes:
-      - ./data:/app/data
+      - app-data:/app/data
     restart: unless-stopped
 
 volumes:

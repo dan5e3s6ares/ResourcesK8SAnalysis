@@ -1,5 +1,8 @@
 from typing import Dict, Optional
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AIService:
@@ -41,7 +44,7 @@ class AIService:
             
             return response.choices[0].message.content
         except Exception as e:
-            print(f"Error calling OpenAI API: {e}")
+            logger.error(f"Error calling OpenAI API: {e}")
             return self._generate_rule_based_recommendations(stats, recommendations, app_name, namespace)
 
     def _create_prompt(self, stats: Dict, recommendations: Dict, app_name: str, namespace: str) -> str:
