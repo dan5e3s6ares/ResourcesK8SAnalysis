@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Run Analysis - K8S Resource Analysis{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 20px;">Run Resource Analysis</h2>
+
+<div id="alert-container"></div>
+
+<div class="card">
+    <div class="card-header">Select Configuration</div>
+    
+    <div class="form-group">
+        <label for="config_select">Configuration</label>
+        <select id="config_select" class="form-control">
+            <option value="">Loading configurations...</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="start_time">Start Time (Optional)</label>
+        <input type="datetime-local" id="start_time">
+    </div>
+    
+    <div class="form-group">
+        <label for="end_time">End Time (Optional)</label>
+        <input type="datetime-local" id="end_time">
+    </div>
+    
+    <button onclick="runAnalysis()" class="btn btn-primary">Run Analysis</button>
+</div>
+
+<div id="results-container" style="display: none;">
+    <div class="card">
+        <div class="card-header">Analysis Results</div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">CPU Recommended</div>
+                <div class="stat-value" id="cpu-rec">-</div>
+                <div class="stat-label">millicores</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Memory Recommended</div>
+                <div class="stat-value" id="mem-rec">-</div>
+                <div class="stat-label">MB</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Disk Recommended</div>
+                <div class="stat-value" id="disk-rec">-</div>
+                <div class="stat-label">MB</div>
+            </div>
+        </div>
+        
+        <div id="stats-details"></div>
+        
+        <div class="card-header" style="margin-top: 30px;">AI Recommendations</div>
+        <pre id="ai-recommendations"></pre>
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('access_token');
+
+async function loadConfigurations() {
+    try {
+        const response = await fetch('/configurations/', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            throw new Error('Failed to load configurations');
+        }
+        
+        const configs = await response.json();
+        const select = document.getElementById('config_select');
+        
+        if (configs.length === 0) {
+            select.innerHTML = '<option value="">No configurations available</option>';
+            return;
+        }
+        
+        select.innerHTML = '<option value="">Select a configuration</option>';
+        configs.forEach(config => {
+            const option = document.createElement('option');
+            option.value = config.id;
+            option.textContent = `${config.app_name} (${config.namespace})`;
+            select.appendChild(option);
+        });
+        
+        // Check if config_id is in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const configId = urlParams.get('config_id');
+        if (configId) {
+            select.value = configId;
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Failed to load configurations', 'error');
+    }
+}
+
+async function runAnalysis() {
+    const configId = document.getElementById('config_select').value;
+    
+    if (!configId) {
+        showAlert('Please select a configuration', 'error');
+        return;
+    }
+    
+    const startTime = document.getElementById('start_time').value;
+    const endTime = document.getElementById('end_time').value;
+    
+    const requestData = {
+        configuration_id: parseInt(configId),
+    };
+    
+    if (startTime) {
+        requestData.start_time = new Date(startTime).toISOString();
+    }
+    if (endTime) {
+        requestData.end_time = new Date(endTime).toISOString();
+    }
+    
+    // Show loading
+    showAlert('Running analysis... This may take a moment.', 'info');
+    
+    try {
+        const response = await fetch('/analysis/run', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Analysis failed');
+        }
+        
+        const results = await response.json();
+        displayResults(results);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert(error.message, 'error');
+    }
+}
+
+function displayResults(results) {
+    document.getElementById('alert-container').innerHTML = '';
+    document.getElementById('results-container').style.display = 'block';
+    
+    // Display recommendations
+    const recs = results.recommended_resources;
+    document.getElementById('cpu-rec').textContent = recs.cpu.recommended_millicores;
+    document.getElementById('mem-rec').textContent = recs.memory.recommended_mb;
+    document.getElementById('disk-rec').textContent = recs.disk.recommended_mb;
+    
+    // Display detailed statistics
+    const stats = results.statistical_analysis;
+    let statsHtml = '<h4>Statistical Analysis</h4>';
+    
+    statsHtml += '<h5>CPU Statistics</h5>';
+    statsHtml += `<p>Mean: ${stats.cpu.mean.toFixed(2)}% | `;
+    statsHtml += `Median: ${stats.cpu.median.toFixed(2)}% | `;
+    statsHtml += `95th Percentile: ${stats.cpu.p95.toFixed(2)}% | `;
+    statsHtml += `99th Percentile: ${stats.cpu.p99.toFixed(2)}%</p>`;
+    
+    statsHtml += '<h5>Memory Statistics</h5>';
+    statsHtml += `<p>Mean: ${stats.memory.mean.toFixed(2)} MB | `;
+    statsHtml += `Median: ${stats.memory.median.toFixed(2)} MB | `;
+    statsHtml += `95th Percentile: ${stats.memory.p95.toFixed(2)} MB | `;
+    statsHtml += `99th Percentile: ${stats.memory.p99.toFixed(2)} MB</p>`;
+    
+    statsHtml += '<h5>Disk Statistics</h5>';
+    statsHtml += `<p>Mean: ${stats.disk.mean.toFixed(2)} MB | `;
+    statsHtml += `Median: ${stats.disk.median.toFixed(2)} MB | `;
+    statsHtml += `95th Percentile: ${stats.disk.p95.toFixed(2)} MB | `;
+    statsHtml += `99th Percentile: ${stats.disk.p99.toFixed(2)} MB</p>`;
+    
+    statsHtml += `<p><strong>Total Samples Analyzed:</strong> ${stats.total_samples}</p>`;
+    
+    document.getElementById('stats-details').innerHTML = statsHtml;
+    
+    // Display AI recommendations
+    document.getElementById('ai-recommendations').textContent = results.ai_recommendations;
+    
+    // Scroll to results
+    document.getElementById('results-container').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+}
+
+loadConfigurations();
+</script>
+{% endblock %}

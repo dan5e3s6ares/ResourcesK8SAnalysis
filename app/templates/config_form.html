@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}New Configuration - K8S Resource Analysis{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 20px;">Create New Configuration</h2>
+
+<div id="alert-container"></div>
+
+<form id="configForm" class="card">
+    <div class="card-header">Application Details</div>
+    
+    <div class="form-group">
+        <label for="app_name">Application Name *</label>
+        <input type="text" id="app_name" name="app_name" required 
+               placeholder="e.g., my-app">
+    </div>
+    
+    <div class="form-group">
+        <label for="namespace">Namespace *</label>
+        <input type="text" id="namespace" name="namespace" required 
+               placeholder="e.g., production">
+    </div>
+    
+    <div class="card-header" style="margin-top: 30px;">Elasticsearch Configuration</div>
+    
+    <div class="form-group">
+        <label for="elasticsearch_url">Elasticsearch URL *</label>
+        <input type="text" id="elasticsearch_url" name="elasticsearch_url" required 
+               placeholder="e.g., http://elasticsearch:9200">
+    </div>
+    
+    <div class="form-group">
+        <label for="elasticsearch_index">Elasticsearch Index *</label>
+        <input type="text" id="elasticsearch_index" name="elasticsearch_index" required 
+               placeholder="e.g., k8s-metrics-*">
+    </div>
+    
+    <div class="card-header" style="margin-top: 30px;">Grafana Configuration</div>
+    
+    <div class="form-group">
+        <label for="grafana_url">Grafana URL *</label>
+        <input type="text" id="grafana_url" name="grafana_url" required 
+               placeholder="e.g., http://grafana:3000">
+    </div>
+    
+    <div class="form-group">
+        <label for="grafana_bearer_token">Grafana Bearer Token *</label>
+        <input type="password" id="grafana_bearer_token" name="grafana_bearer_token" required 
+               placeholder="Your Grafana API token">
+    </div>
+    
+    <div class="card-header" style="margin-top: 30px;">AI Configuration</div>
+    
+    <div class="form-group">
+        <label for="ai_model">AI Model</label>
+        <select id="ai_model" name="ai_model">
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            <option value="gpt-4">GPT-4</option>
+            <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="ai_temperature">AI Temperature (0-1)</label>
+        <input type="number" id="ai_temperature" name="ai_temperature" 
+               value="0.7" min="0" max="1" step="0.1">
+    </div>
+    
+    <div class="form-group">
+        <label for="ai_max_tokens">AI Max Tokens</label>
+        <input type="number" id="ai_max_tokens" name="ai_max_tokens" 
+               value="1000" min="100" max="4000" step="100">
+    </div>
+    
+    <div class="card-header" style="margin-top: 30px;">Analysis Settings</div>
+    
+    <div class="form-group">
+        <label for="analysis_window_hours">Analysis Window (hours)</label>
+        <input type="number" id="analysis_window_hours" name="analysis_window_hours" 
+               value="24" min="1" max="168">
+        <small style="color: #6c757d;">How many hours of data to analyze (1-168)</small>
+    </div>
+    
+    <div style="display: flex; gap: 10px; margin-top: 30px;">
+        <button type="submit" class="btn btn-primary">Create Configuration</button>
+        <a href="/configurations" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+
+<script>
+const token = localStorage.getItem('access_token');
+
+document.getElementById('configForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        app_name: document.getElementById('app_name').value,
+        namespace: document.getElementById('namespace').value,
+        elasticsearch_url: document.getElementById('elasticsearch_url').value,
+        elasticsearch_index: document.getElementById('elasticsearch_index').value,
+        grafana_url: document.getElementById('grafana_url').value,
+        grafana_bearer_token: document.getElementById('grafana_bearer_token').value,
+        ai_model: document.getElementById('ai_model').value,
+        ai_temperature: document.getElementById('ai_temperature').value,
+        ai_max_tokens: document.getElementById('ai_max_tokens').value,
+        analysis_window_hours: parseInt(document.getElementById('analysis_window_hours').value)
+    };
+    
+    try {
+        const response = await fetch('/configurations/', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create configuration');
+        }
+        
+        showAlert('Configuration created successfully!', 'success');
+        setTimeout(() => {
+            window.location.href = '/configurations';
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert(error.message, 'error');
+    }
+});
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+    window.scrollTo(0, 0);
+}
+</script>
+{% endblock %}

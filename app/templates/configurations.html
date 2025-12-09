@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Configurations - K8S Resource Analysis{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>My Configurations</h2>
+    <a href="/configurations/new" class="btn btn-primary">+ New Configuration</a>
+</div>
+
+<div id="configs-container">
+    <div class="loading">
+        <div class="spinner"></div>
+        Loading configurations...
+    </div>
+</div>
+
+<script>
+const token = localStorage.getItem('access_token');
+
+async function loadConfigurations() {
+    try {
+        const response = await fetch('/configurations/', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            throw new Error('Failed to load configurations');
+        }
+        
+        const configs = await response.json();
+        const container = document.getElementById('configs-container');
+        
+        if (configs.length === 0) {
+            container.innerHTML = `
+                <div class="card">
+                    <p>No configurations yet. Create your first one to get started!</p>
+                    <a href="/configurations/new" class="btn btn-primary">Create Configuration</a>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        configs.forEach(config => {
+            html += `
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="flex: 1;">
+                            <h3 style="color: #667eea; margin-bottom: 10px;">${config.app_name}</h3>
+                            <p><strong>Namespace:</strong> ${config.namespace}</p>
+                            <p><strong>Elasticsearch:</strong> ${config.elasticsearch_url}</p>
+                            <p><strong>Index:</strong> ${config.elasticsearch_index}</p>
+                            <p><strong>Grafana:</strong> ${config.grafana_url}</p>
+                            <p><strong>AI Model:</strong> ${config.ai_model}</p>
+                            <p><strong>Analysis Window:</strong> ${config.analysis_window_hours} hours</p>
+                            <p style="color: #6c757d; font-size: 0.9em; margin-top: 10px;">
+                                Created: ${new Date(config.created_at).toLocaleString()}
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <a href="/configurations/edit/${config.id}" class="btn btn-secondary">Edit</a>
+                            <button onclick="deleteConfig(${config.id})" class="btn btn-danger">Delete</button>
+                            <a href="/analysis?config_id=${config.id}" class="btn btn-primary">Analyze</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('configs-container').innerHTML = 
+            '<div class="alert alert-error">Failed to load configurations</div>';
+    }
+}
+
+async function deleteConfig(configId) {
+    if (!confirm('Are you sure you want to delete this configuration?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/configurations/${configId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            loadConfigurations();
+        } else {
+            alert('Failed to delete configuration');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to delete configuration');
+    }
+}
+
+loadConfigurations();
+</script>
+{% endblock %}
